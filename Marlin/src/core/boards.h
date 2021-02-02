@@ -316,6 +316,7 @@
 #define BOARD_CREALITY_V4             4033  // Creality v4.x (STM32F103RE)
 #define BOARD_CREALITY_V427           4034  // Creality v4.2.7 (STM32F103RE)
 #define BOARD_TRIGORILLA_PRO          4035  // Trigorilla Pro (STM32F103ZET6)
+#define BOARD_CREALITY_V431           4041  // Creality v4.3.1 (STM32F103RE)
 
 //
 // ARM Cortex-M4F

@@ -21,6 +21,10 @@
  */
 #pragma once
 
+#if ENABLED(MachineEnder6)
+  #include "dwin_base.h"
+#else
+
 /**
  * DWIN by Creality3D
  */
@@ -344,6 +348,7 @@ void HMI_Temperature(void);       // Temperature menu
 void HMI_Motion(void);            // Sports menu
 void HMI_Info(void);              // Information menu
 void HMI_Tune(void);              // Adjust the menu
+void DWIN_SetHomeFlag(bool flag);
 
 #if HAS_HOTEND
   void HMI_PLAPreheatSetting(void); // PLA warm-up setting
@@ -362,3 +367,4 @@ void DWIN_HandleScreen(void);
 
 void DWIN_CompletedHoming(void);
 void DWIN_CompletedLeveling(void);
+#endif

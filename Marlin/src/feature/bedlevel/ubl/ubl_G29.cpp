@@ -49,6 +49,10 @@
     #include "../../../lcd/extui/ui_api.h"
   #endif
 
+  #if ENABLED(DWIN_CREALITY_LCD)
+    #include "../../../lcd/dwin/dwin.h"
+  #endif
+
   #include <math.h>
 
   #define UBL_G29_P31
@@ -675,6 +679,10 @@
       }
     #else
       UNUSED(probe_deployed);
+    #endif
+
+    #if ENABLED(DWIN_CREALITY_LCD)
+      DWIN_CompletedLeveling();
     #endif
 
     TERN_(HAS_MULTI_HOTEND, tool_change(old_tool_index));

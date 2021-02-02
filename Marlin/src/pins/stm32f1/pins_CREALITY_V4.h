@@ -77,9 +77,15 @@
 //
 // Limit Switches
 //
-#define X_STOP_PIN                          PA5
-#define Y_STOP_PIN                          PA6
-#define Z_STOP_PIN                          PA7
+#ifndef X_STOP_PIN
+  #define X_STOP_PIN                          PA5
+#endif
+#ifndef Y_STOP_PIN
+  #define Y_STOP_PIN                          PA6
+#endif
+#ifndef Z_STOP_PIN
+  #define Z_STOP_PIN                          PA7
+#endif
 
 #define Z_MIN_PROBE_PIN                     PB1   // BLTouch IN
 

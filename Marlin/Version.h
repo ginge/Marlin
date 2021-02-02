@@ -49,7 +49,9 @@
 #define VerChar1 "E5"
 #elif(ENABLED(MachineEnder5Plus))
 #define VerChar1 "E5P"
-#elif(ENABLED(MachineCR20))
+#elif(ENABLED(MachineEnder6))
+#define VerChar1 "E6"
+#elif(ENABLED(MachineCR20)),
 #define VerChar1 "2"
 #elif(ENABLED(MachineCR10Orig))
 #define VerChar1 "O"

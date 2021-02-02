@@ -68,6 +68,10 @@ bool FilamentMonitorBase::enabled = true,
   #include "../lcd/extui/ui_api.h"
 #endif
 
+#if ENABLED(DWIN_CREALITY_LCD)
+  #include "../lcd/dwin/dwin.h"
+#endif
+
 void event_filament_runout() {
 
   if (TERN0(ADVANCED_PAUSE_FEATURE, did_pause_print)) return;  // Action already in progress. Purge triggered repeated runout.
@@ -88,6 +92,7 @@ void event_filament_runout() {
   #endif
 
   TERN_(EXTENSIBLE_UI, ExtUI::onFilamentRunout(ExtUI::getActiveTool()));
+  TERN_(DWIN_CREALITY_LCD, DWIN_FilamentRunout());
 
   #if EITHER(HOST_PROMPT_SUPPORT, HOST_ACTION_COMMANDS)
     const char tool = '0'

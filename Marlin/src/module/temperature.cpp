@@ -3138,9 +3138,8 @@ void Temperature::tick() {
 
       if (wait_for_heatup) {
         #if ENABLED(DWIN_CREALITY_LCD)
-          HMI_flag.heat_flag = 0;
           duration_t elapsed = print_job_timer.duration();  // print timer
-          dwin_heat_time = elapsed.value;
+          DWIN_SetHeatFlag(0, elapsed.value);
         #else
           ui.reset_status();
         #endif

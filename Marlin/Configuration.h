@@ -32,6 +32,7 @@
 
 
 //STM32F103RE Machines
+//#define MachineEnder6
 //#define MachineEnder3V2
 //#define MachineEnder3Pro422
 //#define MachineEnder3Pro427
@@ -358,7 +359,7 @@
   #endif
 #endif
 
-#if ENABLED(MachineEnder5Plus)
+#if ANY(MachineEnder5Plus)
   #if NONE(ABL_NCSW, ABL_EZABL, ABL_BLTOUCH)
     #define ABL_BLTOUCH
   #endif
@@ -432,8 +433,10 @@
   #endif
 #endif
 
-#if ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427)
-  #define POWER_LOSS_RECOVERY //Screen will not compile without PLR
+#if ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427, MachineEnder6)
+  #ifndef POWER_LOSS_RECOVERY
+    #define POWER_LOSS_RECOVERY //Screen will not compile without PLR
+  #endif
   #if NONE(BedAC, BedDC)
     #define BedDC
   #endif
@@ -496,11 +499,16 @@
   #define SHOW_BOOTSCREEN
 
 // Show the bitmap in Marlin/_Bootscreen.h on startup.
-  #if DISABLED(MachineEnder3V2)
+  #if NONE(MachineEnder3V2, MachineEnder6)
     #define SHOW_CUSTOM_BOOTSCREEN
     // Show the bitmap in Marlin/_Statusscreen.h on the status screen.
     #define CUSTOM_STATUS_SCREEN_IMAGE
   #endif
+#endif
+
+#if ENABLED(MachineEnder6)
+  // its inverted
+  #define lerdgeFilSensor
 #endif
 
 /**
@@ -513,7 +521,7 @@
  */
 #if ANY(SKR13, SKR14, SKR14Turbo, SKRPRO11, SKRMiniE3V2)
   #define SERIAL_PORT -1
- #elif ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427)
+ #elif ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427, MachineEnder6)
   #define SERIAL_PORT 1
 #else
   #define SERIAL_PORT 0
@@ -530,7 +538,7 @@
   #define SERIAL_PORT_2 2
 #elif ANY(SKR13, SKR14, SKR14Turbo)
   #define DGUS_SERIAL_PORT 0
-#elif ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427)
+#elif ANY(MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427, MachineEnder6)
   #define SERIAL_PORT_2 3
 #endif
 
@@ -543,7 +551,7 @@
  *
  * :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
  */
-#if ANY(MachineEnder3V2, CrealityViewerKit)
+#if ANY(MachineEnder3V2, CrealityViewerKit, MachineEnder6)
   #define BAUDRATE 115200
 #else
   #define BAUDRATE 250000
@@ -568,6 +576,8 @@
     #define MOTHERBOARD BOARD_CREALITY_V4
   #elif ENABLED(MachineEnder3Pro427)
     #define MOTHERBOARD BOARD_CREALITY_V427
+  #elif ENABLED(MachineEnder6)
+    #define MOTHERBOARD BOARD_CREALITY_V431
   #elif (ENABLED(MachineCR10Orig) && DISABLED(Melzi_To_SBoardUpgrade))
     #define MOTHERBOARD BOARD_MELZI_CREALITY
   #else
@@ -996,6 +1006,10 @@
       #define DEFAULT_Kp 25.25
       #define DEFAULT_Ki 2.17
       #define DEFAULT_Kd 73.44
+    #elif ENABLED(MachineEnder6)
+      #define DEFAULT_Kp 30.86
+      #define DEFAULT_Ki 3.10
+      #define DEFAULT_Kd 75.84
     #elif ENABLED(MachineEnder5Plus)
       #define  DEFAULT_Kp 14.72
       #define  DEFAULT_Ki 0.89
@@ -1125,7 +1139,12 @@
  * Note: For Bowden Extruders make this large enough to allow load/unload.
  */
 #define PREVENT_LENGTHY_EXTRUDE
-#define EXTRUDE_MAXLENGTH 750
+
+#if ENABLED(MachineEnder6)
+  #define EXTRUDE_MAXLENGTH 1000
+#elif
+  #define EXTRUDE_MAXLENGTH 750
+#endif
 
 //===========================================================================
 //======================== Thermal Runaway Protection =======================
@@ -1156,9 +1175,13 @@
 
 // Uncomment one of these options to enable CoreXY, CoreXZ, or CoreYZ kinematics
 // either in the usual order or reversed
-#if ENABLED(MachineEnder4)
+#if ANY(MachineEnder4)
   #define COREXY
 #endif
+#if ENABLED(MachineEnder6)
+  #define COREYX
+#endif
+
 //#define COREXZ
 //#define COREYZ
 //#define COREYX
@@ -1174,7 +1197,7 @@
 // Specify here all the endstop connectors that are connected to any endstop or probe.
 // Almost all printers will be using one per axis. Probes will use one or more of the
 // extra connectors. Leave undefined any used for non-endstop and non-probe purposes.
-#if ANY(MachineEnder5, MachineEnder5Plus)
+#if ANY(MachineEnder5, MachineEnder5Plus, MachineEnder6)
   #define USE_ZMIN_PLUG
   #define USE_XMAX_PLUG
   #define USE_YMAX_PLUG
@@ -1226,12 +1249,20 @@
 #endif
 #define X_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
 #define Y_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
-#define Z_MAX_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+
+#if ENABLED(MachineEnder6)
+  #define Z_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
+#else
+  #define Z_MAX_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#endif
 
 #if NONE(ABL_EZABL, ABL_BLTOUCH, MachineCR2020)
   #define Z_MIN_ENDSTOP_INVERTING false  // set to true to invert the logic of the endstop.
   #define Z_MIN_PROBE_ENDSTOP_INVERTING false // set to true to invert the logic of the probe.
-#else
+#elif ENABLED(MachineEnder6)
+  #define Z_MIN_ENDSTOP_INVERTING false  // set to true to invert the logic of the endstop.
+  #define Z_MIN_PROBE_ENDSTOP_INVERTING false // set to true to invert the logic of the probe.
+#else 
   #define Z_MIN_ENDSTOP_INVERTING true  // set to true to invert the logic of the endstop.
   #define Z_MIN_PROBE_ENDSTOP_INVERTING true // set to true to invert the logic of the probe.
 #endif
@@ -1341,7 +1372,7 @@
 
 // Enable this feature if all enabled endstop pins are interrupt-capable.
 // This will remove the need to poll the interrupt pins, saving many CPU cycles.
-#if ENABLED(MachineEnder3V2)
+#if ANY(MachineEnder3V2, MachineEnder6)
   #define ENDSTOP_INTERRUPTS_FEATURE
 #endif
 
@@ -1400,7 +1431,7 @@
   #define EStepsmm 409
 #elif ANY(EZRstruder, MachineCR10SV2)
   #define EStepsmm 93
-#elif ANY(MachineCR10SPro, MachineCR10Max, MachineCRXPro)
+#elif ANY(MachineCR10SPro, MachineCR10Max, MachineCRXPro, MachineEnder6)
   #define EStepsmm 140
 #elif ENABLED(MachineCR2020)
   #define EStepsmm 113
@@ -1463,6 +1494,13 @@
   #define DEFAULT_ACCELERATION          750    // X, Y, Z and E acceleration for printing moves
   #define DEFAULT_RETRACT_ACCELERATION  1000    // E acceleration for retracts
   #define DEFAULT_TRAVEL_ACCELERATION   300    // X, Y, Z acceleration for travel (non printing) moves
+#elif ENABLED(MachineEnder6)
+  #define DEFAULT_MANUAL_FEEDRATE       { 600, 600, 100, 75 }
+  #define DEFAULT_MAX_FEEDRATE          { 500, 500, 10, 100 }
+  #define DEFAULT_MAX_ACCELERATION      { 5000, 5000, 100, 10000 }
+  #define DEFAULT_ACCELERATION          2000    // X, Y, Z and E acceleration for printing moves
+  #define DEFAULT_RETRACT_ACCELERATION  3000    // E acceleration for retracts
+  #define DEFAULT_TRAVEL_ACCELERATION   3000    // X, Y, Z acceleration for travel (non printing) moves
 #endif
 
 //#define LIMITED_MAX_FR_EDITING        // Limit edit via M203 or LCD to DEFAULT_MAX_FEEDRATE * 2
@@ -1554,10 +1592,12 @@
  * The probe replaces the Z-MIN endstop and is used for Z homing.
  * (Automatically enables USE_PROBE_FOR_Z_HOMING.)
  */
-#define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
+#if DISABLED(MachineEnder6)
+  #define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
 
 // Force the use of the probe for Z-axis homing
 #define USE_PROBE_FOR_Z_HOMING
+#endif
 
 /**
  * Z_MIN_PROBE_PIN
@@ -1651,7 +1691,7 @@
     #define PROBING_FANS_OFF          // Turn fans off when probing
   #endif
 
-  #if ENABLED(MachineEnder4) && NONE(SKR13, SKR14, SKR14Turbo, SKRPRO11)
+  #if ANY(MachineEnder4) && NONE(SKR13, SKR14, SKR14Turbo, SKRPRO11)
     #define SOLENOID_PROBE PIN_15
   #endif
 #endif
@@ -1714,6 +1754,8 @@
    #elif ANY(ABL_EZABL, ABL_NCSW)
      #define NOZZLE_TO_PROBE_OFFSET { -44, -10, 0 }
    #endif
+#elif ENABLED(MachineEnder6)
+  #define NOZZLE_TO_PROBE_OFFSET { -20.7, -7, -2.5 }
 #elif ANY(MachineCR10SPro, MachineCR10Max) && ENABLED(HotendStock) && DISABLED(MicroswissDirectDrive)
   #define NOZZLE_TO_PROBE_OFFSET { -27, 0, 0 }
 #elif (ANY(ABL_BLTOUCH, ABL_EZABL,ABL_NCSW) && ENABLED(E3DHemera))
@@ -1892,12 +1934,12 @@
   #else
     #define INVERT_Y_DIR false
   #endif
-  #if ANY(MachineEnder5Plus, MachineCR2020)
+  #if ANY(MachineEnder5Plus, MachineCR2020, MachineEnder6)
     #define INVERT_Z_DIR false
   #else
     #define INVERT_Z_DIR true
   #endif
-  #if ANY(E3DTitan, MachineCR2020)
+  #if ANY(E3DTitan, MachineCR2020, MachineEnder6)
     #define INVERT_E0_DIR true
     #define INVERT_E1_DIR false
   #else
@@ -1933,7 +1975,7 @@
 
 // Direction of endstops when homing; 1=MAX, -1=MIN
 // :[-1,1]
-#if ANY(MachineEnder5, MachineEnder5Plus)
+#if ANY(MachineEnder5, MachineEnder5Plus, MachineEnder6)
   #define X_HOME_DIR 1
   #define Y_HOME_DIR 1
   #define Z_HOME_DIR -1
@@ -2050,6 +2092,13 @@
     #define X_MAX_POS 200
     #define Y_MAX_POS 202.5
     #define ClipClearance 15
+  #elif ENABLED(MachineEnder6)
+    #define X_BED_SIZE 260
+    #define Y_BED_SIZE 260
+    #define Z_MAX_POS 400
+    #define X_MAX_POS 260
+    #define Y_MAX_POS 260
+    #define ClipClearance 5
   #endif
 
   #ifndef ClipClearance
@@ -2302,7 +2351,7 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
   #define MESH_INSET 1
-  #if NONE(MachineCR10SPro, MachineCRX, MachineEnder5Plus, MachineCR10Max, MachineEnder4, OrigLCD) || ENABLED(GraphicLCD)
+  #if NONE(MachineCR10SPro, MachineCRX, MachineEnder5Plus, MachineCR10Max, MachineEnder4, OrigLCD, MachineEnder6) || ENABLED(GraphicLCD)
     #define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
   #endif
   #define UBL_MESH_EDIT_MOVES_Z     // Sophisticated users prefer no movement of nozzle
@@ -2776,7 +2825,7 @@
 #if DISABLED(MelziHostOnly)
   #define SDSUPPORT
 #endif
-#if ENABLED(MachineEnder3V2)
+#if ENABLED(MachineEnder3V2, MachineEnder6)
   #define SDIO_SUPPORT
 #endif
 
@@ -2962,7 +3011,7 @@
   #define ENDER2_STOCKDISPLAY
 #elif ANY(MachineCR20, MachineCR2020)
   #define MKS_MINI_12864
-#elif ENABLED(MachineEnder3V2)
+#elif ANY(MachineEnder3V2, MachineEnder6)
   #define DWIN_CREALITY_LCD
 #elif ANY(OrigLCD, MachineCR10Orig, MachineEnder3Pro422, MachineEnder3Pro427, SKRMiniE3V2) && DISABLED(GraphicLCD)
   #define CR10_STOCKDISPLAY

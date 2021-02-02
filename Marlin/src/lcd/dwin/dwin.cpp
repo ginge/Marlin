@@ -26,7 +26,7 @@
 
 #include "../../inc/MarlinConfigPre.h"
 
-#if ENABLED(DWIN_CREALITY_LCD)
+#if ENABLED(DWIN_CREALITY_LCD) && DISABLED(MachineEnder6)
 
 #include "dwin.h"
 
@@ -3581,6 +3581,10 @@ void DWIN_HandleScreen(void) {
     case Step_value:            HMI_StepXYZE(); break;
     default: break;
   }
+}
+
+void DWIN_SetHomeFlag(bool flag) {
+  HMI_flag.home_flag = flag;
 }
 
 void DWIN_CompletedHoming(void) {

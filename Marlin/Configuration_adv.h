@@ -862,7 +862,7 @@
 // If the Nozzle or Bed falls when the Z stepper is disabled, set its resting position here.
 //#define Z_AFTER_DEACTIVATE Z_HOME_POS
 
-#if ANY(MachineEnder5, MachineEnder5Plus)
+#if ANY(MachineEnder5, MachineEnder5Plus, MachineEnder6)
   #define HOME_AFTER_DEACTIVATE  // Require rehoming after steppers are deactivated
 #endif
 
@@ -1149,7 +1149,7 @@
   #define LCD_TIMEOUT_TO_STATUS 15000
 
   // Add an 'M73' G-code to set the current percentage
-  #if NONE(MachineEnder4, MachineEnder3V2) || ENABLED(GraphicLCD)
+  #if NONE(MachineEnder4, MachineEnder3V2, MachineEnder6) || ENABLED(GraphicLCD)
     #define LCD_SET_PROGRESS_MANUALLY
   #endif
 #endif
@@ -1184,7 +1184,7 @@
 
   // The standard SD detect circuit reads LOW when media is inserted and HIGH when empty.
   // Enable this option and set to HIGH if your SD cards are incorrectly detected.
-  #if NONE(MachineCR10SPro, MachineCRX, MachineEnder5Plus, MachineCR10Max, MachineEnder3V2)
+  #if NONE(MachineCR10SPro, MachineCRX, MachineEnder5Plus, MachineEnder6, MachineCR10Max, MachineEnder3V2)
     #define SD_DETECT_STATE HIGH
   #endif
 
@@ -1675,7 +1675,7 @@
   #endif
   #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
     //#define BABYSTEP_HOTEND_Z_OFFSET      // For multiple hotends, babystep relative Z offsets
-    #if NONE(MachineCR10Orig, LowMemoryBoard, EXTENSIBLE_UI, SKRMiniE3V2, MachineEnder3V2) && (DISABLED(MachineEnder4) || ENABLED(GraphicLCD))
+    #if NONE(MachineCR10Orig, LowMemoryBoard, EXTENSIBLE_UI, SKRMiniE3V2, MachineEnder3V2, MachineEnder6) && (DISABLED(MachineEnder4) || ENABLED(GraphicLCD))
       #define BABYSTEP_ZPROBE_GFX_OVERLAY   // Enable graphical overlay on Z-offset editor
     #endif
   #endif
@@ -2004,7 +2004,7 @@
  * Currently handles M108, M112, M410, M876
  * NOTE: Not yet implemented for all platforms.
  */
-#if NONE(SKRPRO11, SKRMiniE3V2, MachineEnder3V2, MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427)
+#if NONE(SKRPRO11, SKRMiniE3V2, MachineEnder3V2, MachineEnder3V2, MachineEnder3Pro422, MachineEnder3Pro427, MachineEnder6)
   #define EMERGENCY_PARSER
 #endif
 
@@ -2054,7 +2054,7 @@
  * Note that M207 / M208 / M209 settings are saved to EEPROM.
  *
  */
- #if ANY(SKR13, SKR14, SKR14Turbo, SKRPRO11, MachineEnder3V2)
+ #if ANY(SKR13, SKR14, SKR14Turbo, SKRPRO11, MachineEnder3V2, MachineEnder6)
   #define FWRETRACT
 #endif
 #if ENABLED(FWRETRACT)
@@ -2165,7 +2165,7 @@
   #define PAUSE_PARK_RETRACT_FEEDRATE         60  // (mm/s) Initial retract feedrate.
   #define PAUSE_PARK_RETRACT_LENGTH            4  // (mm) Initial retract.
                                                   // This short retract is done immediately, before parking the nozzle.
-  #if ANY(MachineCR10SPro, MachineCR10SProV2, MachineCR10Max)
+  #if ANY(MachineCR10SPro, MachineCR10SProV2, MachineCR10Max, MachineEnder6)
     #define FILAMENT_CHANGE_UNLOAD_FEEDRATE     20  // (mm/s) Unload filament feedrate. This can be pretty fast.
   #else
     #define FILAMENT_CHANGE_UNLOAD_FEEDRATE     40  // (mm/s) Unload filament feedrate. This can be pretty fast.
@@ -2177,6 +2177,8 @@
     #define FILAMENT_CHANGE_UNLOAD_LENGTH      125
   #elif ANY(MachineEnder5Plus, MachineCR10Max, MachineCR10S4, MachineCR10S5)
     #define FILAMENT_CHANGE_UNLOAD_LENGTH   700
+  #elif ENABLED(MachineEnder6)
+    #define FILAMENT_CHANGE_UNLOAD_LENGTH   830
   #else
     #define FILAMENT_CHANGE_UNLOAD_LENGTH      430  // (mm) The length of filament for a complete unload.
   #endif
@@ -2195,6 +2197,8 @@
     #define FILAMENT_CHANGE_FAST_LOAD_LENGTH   450  // (mm) Load length of filament, from extruder gear to nozzle.
   #elif ANY(MachineEnder5Plus, MachineCR10Max, MachineCR10S4, MachineCR10S5)
     #define FILAMENT_CHANGE_FAST_LOAD_LENGTH   600
+  #elif ENABLED(MachineEnder6)
+    #define FILAMENT_CHANGE_FAST_LOAD_LENGTH   830
   #else
     #define FILAMENT_CHANGE_FAST_LOAD_LENGTH   430  // (mm) Load length of filament, from extruder gear to nozzle.
   #endif
