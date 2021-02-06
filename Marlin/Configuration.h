@@ -1007,9 +1007,9 @@
       #define DEFAULT_Ki 2.17
       #define DEFAULT_Kd 73.44
     #elif ENABLED(MachineEnder6)
-      #define DEFAULT_Kp 30.86
-      #define DEFAULT_Ki 3.10
-      #define DEFAULT_Kd 75.84
+      #define DEFAULT_Kp 24.7
+      #define DEFAULT_Ki 1.95
+      #define DEFAULT_Kd 78.18
     #elif ENABLED(MachineEnder5Plus)
       #define  DEFAULT_Kp 14.72
       #define  DEFAULT_Ki 0.89
@@ -1431,10 +1431,12 @@
   #define EStepsmm 409
 #elif ANY(EZRstruder, MachineCR10SV2)
   #define EStepsmm 93
-#elif ANY(MachineCR10SPro, MachineCR10Max, MachineCRXPro, MachineEnder6)
+#elif ANY(MachineCR10SPro, MachineCR10Max, MachineCRXPro)
   #define EStepsmm 140
 #elif ENABLED(MachineCR2020)
   #define EStepsmm 113
+#else ENABLED(MachineEnder6)
+  #define EStepsmm 130
 #else
   #define EStepsmm 95
 #endif
@@ -1539,9 +1541,16 @@
  */
 #define CLASSIC_JERK
 #if ENABLED(CLASSIC_JERK)
-  #define DEFAULT_XJERK 10.0
-  #define DEFAULT_YJERK 5.0
-  #define DEFAULT_ZJERK  0.3
+
+  #if ENABLED(MachineEnder6)
+    #define DEFAULT_XJERK 10.0
+    #define DEFAULT_YJERK 10.0
+    #define DEFAULT_ZJERK  0.4
+  #else
+    #define DEFAULT_XJERK 10.0
+    #define DEFAULT_YJERK 5.0
+    #define DEFAULT_ZJERK  0.3
+  #endif
 
   //#define TRAVEL_EXTRA_XYJERK 0.0     // Additional jerk allowance for all travel moves
 
