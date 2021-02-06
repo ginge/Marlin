@@ -179,6 +179,7 @@ static const dwin_ui_element ui_elements_ender_6_settings[] = {
     { 0x103E, 6, ElementButton, "", _settings_disable_motor_pressed, NULL },
     // 10
     { 0x1200, 0, ElementIcon, "", NULL, NULL },
+    { 0x1088, 0, ElementInput, "", NULL, NULL },
 };
 
 
@@ -523,10 +524,10 @@ void _nofil_no(dwin_ui_element *element, void *context) {
 
 /* Settings Window */
 void _settings_init(dwin_window *window, void *context) {
-    uint8_t volume = dwin_get_volume();
+    uint16_t volume = dwin_get_volume();
     _settings_volume_set_pressed(NULL, (void *)&volume);
     // set the value of the incrementor
-    dwin_send(&ui_elements_ender_6_settings[1], (short)volume << 8);
+    dwin_send(&ui_elements_ender_6_settings[11], volume);
 }
 
 void _settings_levelling_pressed(dwin_ui_element *element, void *context) {
@@ -569,6 +570,8 @@ void _settings_back_pressed(dwin_ui_element *element, void *context) {
 
 void _settings_volume_set_pressed(dwin_ui_element *element, void *context) {
     short volume = *(short *)context;
+    NOMORE(volume, (short)(0xFF));
+    NOLESS(volume, (short)(0x00));
     if(volume == 0) {
         // mute icon
         dwin_send(&ui_elements_ender_6_settings[0], ui_elements_ender_6_settings[0].key_code + 1);
@@ -582,7 +585,6 @@ void _settings_volume_set_pressed(dwin_ui_element *element, void *context) {
         dwin_send(&ui_elements_ender_6_settings[1], ui_elements_ender_6_settings[1].key_code + (volume + 1)/32 - 1);
     }
 
-    NOMORE(volume, (short)(0xFF));
     dwin_set_volume((uint8_t)volume);
 }
 

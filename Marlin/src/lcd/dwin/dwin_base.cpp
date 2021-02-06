@@ -236,9 +236,14 @@ void dwin_set_probe_offset(float z) {
     NOLESS(probe.offset.z, (Z_PROBE_OFFSET_RANGE_MIN));
     NOMORE(probe.offset.z, (Z_PROBE_OFFSET_RANGE_MAX));
 }
+uint8_t _eeprom_read_volume() {
+  uint8_t vol;
+  vol = BL24CXX::readOneByte(DWIN_VOLUME_EEPROM_ADDRESS);
+  return vol;
+}
 
 void dwin_init_volume() {
-  BL24CXX::read(DWIN_BED_LEVEL_EEPROM_ADDRESS, (uint8_t*)&_dwin_volume, sizeof(_dwin_volume));
+  _dwin_volume = _eeprom_read_volume();
   rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
 
   rtscheck.RTS_SndData((unsigned long)_dwin_volume << 8, SoundAddr + 1);
@@ -246,7 +251,7 @@ void dwin_init_volume() {
 
 void dwin_set_volume(uint8_t volume) {
   _dwin_volume = volume;
-  BL24CXX::write(DWIN_VOLUME_EEPROM_ADDRESS, &volume, 1);
+  BL24CXX::writeOneByte(DWIN_VOLUME_EEPROM_ADDRESS, volume);
   rtscheck.RTS_SndData((unsigned long)_dwin_volume << 8, SoundAddr + 1);
 }
 
