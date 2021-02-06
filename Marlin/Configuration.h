@@ -1755,7 +1755,7 @@
      #define NOZZLE_TO_PROBE_OFFSET { -44, -10, 0 }
    #endif
 #elif ENABLED(MachineEnder6)
-  #define NOZZLE_TO_PROBE_OFFSET { -20.7, -7, -2.5 }
+  #define NOZZLE_TO_PROBE_OFFSET { -20.7, -7, -3.5 }
 #elif ANY(MachineCR10SPro, MachineCR10Max) && ENABLED(HotendStock) && DISABLED(MicroswissDirectDrive)
   #define NOZZLE_TO_PROBE_OFFSET { -27, 0, 0 }
 #elif (ANY(ABL_BLTOUCH, ABL_EZABL,ABL_NCSW) && ENABLED(E3DHemera))
@@ -1845,7 +1845,11 @@
   #define Z_AFTER_PROBING           5 // Z position after probing is done
 #endif
 
+#if ENABLED(MachineEnder6)
+#define Z_PROBE_LOW_POINT          -8
+#else
 #define Z_PROBE_LOW_POINT          -3 // Farthest distance below the trigger-point to go before stopping
+#endif
 
 // For M851 give a range for adjusting the Z probe offset
 #define Z_PROBE_OFFSET_RANGE_MIN -9

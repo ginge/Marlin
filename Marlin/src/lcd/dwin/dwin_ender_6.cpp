@@ -52,9 +52,18 @@ void _level_back(dwin_ui_element *element, void *context);
 void _autolevel_init(dwin_window *window, void *context);
 
 // refuel
+void _nav_to_refuel();
+void _refuel_draw(dwin_window *window, void *context);
+void _refuel_init(dwin_window *window, void *context);
 void _refuel_back(dwin_ui_element *element, void *context);
+void _refuel_ret(dwin_ui_element *element, void *context);
+void _refuel_feed(dwin_ui_element *element, void *context);
+void _refuel_heatup(dwin_ui_element *element, void *context);
+void _refuel_cancel(dwin_ui_element *element, void *context);
+void _refuel_set_e_mm(dwin_ui_element *element, void *context);
 
 // move
+static void _move_n(AxisEnum axis, uint16_t value, float min, float max);
 void _move_init(dwin_window *window, void *context);
 void _move_back(dwin_ui_element *element, void *context);
 void _move_x(dwin_ui_element *element, void *context);
@@ -168,6 +177,8 @@ static const dwin_ui_element ui_elements_ender_6_settings[] = {
     { 0x103E, 4, ElementButton, "", _settings_language_pressed, NULL },
     { 0x103E, 5, ElementButton, "", _settings_info_pressed, NULL },
     { 0x103E, 6, ElementButton, "", _settings_disable_motor_pressed, NULL },
+    // 10
+    { 0x1200, 0, ElementIcon, "", NULL, NULL },
 };
 
 
@@ -192,11 +203,18 @@ static const dwin_ui_element ui_elements_ender_6_level[] = {
 };
 
 static const dwin_ui_element ui_elements_ender_6_refuel[] = {
-    { 0x1044, 1, ElementButton, "", _refuel_back, NULL },
-    { 0x1054, 0, ElementInput, "", NULL, NULL },
+    { 0x1040, 1, ElementButton, "", _refuel_back, NULL },
+    { 0x1056, 1, ElementButton, "", _refuel_ret, NULL },
+    { 0x1056, 2, ElementButton, "", _refuel_feed, NULL },
+    { 0x1056, 5, ElementButton, "", _refuel_heatup, NULL },
+    { 0x1056, 6, ElementButton, "", _refuel_cancel, NULL },
+    { 0x1056, 0xF1, ElementButton, "", _refuel_cancel, NULL },
+    { 0x1054, 0, ElementInput, "", NULL, NULL }, // mm label
+    { 0x1020, 0, ElementInput, "", NULL, NULL }, // min material temp
+    { 0x1024, 0, ElementInput, "", NULL, NULL }, // progress bar
+    { 0x1054, 0xFF, ElementButton, "", _refuel_set_e_mm, NULL }, // mm label
     { NozzlePreheat, 0, ElementInput, "", NULL, NULL },
     { NozzleTemp, 0, ElementInput, "", NULL, NULL },
-    { 0x1024, 0, ElementInput, "pct", NULL, NULL },
 };
 
 static const dwin_ui_element ui_elements_ender_6_move[] = {
@@ -227,10 +245,6 @@ static const dwin_ui_element ui_elements_ender_6_home[] = {
 static const dwin_ui_element ui_elements_ender_6_lang[] = {
     { 0x1111, 1, ElementButton, "", _lang_back, NULL },
     { 0x1111, 1, ElementButton, "", _lang_select, NULL },  
-};
-
-static const dwin_ui_element ui_elements_ender_6_motor[] = {
-    
 };
 
 // auto page switch is enabled on all of these buttons
@@ -329,10 +343,11 @@ static const dwin_window windows[] = {
     WINDOW(LANGS(63, 0),  ui_elements_ender_6_settings,  "Settings",    &_settings_init,    NULL),
     WINDOW(LANGS(64, 0),  ui_elements_ender_6_level,     "Level",       &_level_init,       NULL),
     WINDOW(LANGS(84, 0),  ui_elements_ender_6_aux_move,  "AuxLevel",    NULL,               NULL),
-    WINDOW(LANGS(65, 0),  ui_elements_ender_6_refuel,    "Refuel",      NULL,               NULL),
+    WINDOW(LANGS(65, 0),  ui_elements_ender_6_refuel,    "Refuel1",     &_refuel_init,      &_refuel_draw),
+    WINDOW(LANGS(66, 0),  ui_elements_ender_6_refuel,    "Refuel2",     &_refuel_init,      &_refuel_draw),
+    WINDOW(LANGS(68, 0),  ui_elements_ender_6_refuel,    "Refuel3",     &_refuel_init,      &_refuel_draw),
     WINDOW(LANGS(71, 0),  ui_elements_ender_6_move,      "Move",        &_move_init,        NULL),
     WINDOW(LANGS(33, 34), ui_elements_ender_6_lang,      "Lang",        NULL,               NULL),
-    WINDOW(LANGS(99, 99), ui_elements_ender_6_motor,     "Motor",       NULL,               NULL),
     WINDOW(LANGS(74, 0),  ui_elements_ender_6_home,      "AutoHome",    NULL,               &_homing_draw),
     WINDOW(LANGS(85, 0),  NULL,                          "AutoLevel",   &_autolevel_init,   NULL),
     WINDOW(LANGS(59, 0),  ui_elements_ender_6_plaabs,    "PLAABS1",     NULL,               &_plaabs_draw),
@@ -347,14 +362,16 @@ static const dwin_window windows[] = {
     WINDOW(LANGS(53, 0),  ui_elements_ender_6_print,     "PrintRun",    &_print_init,       &_print_draw), 
     WINDOW(LANGS(54, 0),  ui_elements_ender_6_print,     "PrintPause",  &_print_init,       &_print_draw),
     WINDOW(LANGS(56, 0),  ui_elements_ender_6_adjust,    "Adjust",      &_adjust_init,      NULL), 
+    WINDOW(LANGS(88, 0),  NULL,                          "TooHot",      NULL,               NULL), 
+    WINDOW(LANGS(89, 0),  NULL,                          "TooCold",     NULL,               NULL), 
+    WINDOW(LANGS(90, 0),  NULL,                          "ThermFail",   NULL,               NULL), 
     
 };
 
 
 
 
-void dwin_lcd_model_init()
-{
+void dwin_lcd_model_init() {
     ui_register_windows(windows, sizeof(windows) / sizeof(dwin_window));
 }
 
@@ -362,9 +379,9 @@ void dwin_lcd_model_init()
 // filament was removed while printing
 void dwin_filament_was_removed() {
     dwin_window *windowfil = ui_window_get_by_name("NoFilament");
-    dwin_window *window1 = ui_window_get_by_name("Refuel");
-    dwin_window *window2 = ui_window_get_by_name("Refuel1");
-    dwin_window *window3 = ui_window_get_by_name("Refuel2");
+    dwin_window *window1 = ui_window_get_by_name("Refuel1");
+    dwin_window *window2 = ui_window_get_by_name("Refuel2");
+    dwin_window *window3 = ui_window_get_by_name("Refuel3");
     dwin_window *curwin = ui_window_get_current_window();
 
     if (curwin != window1 &&
@@ -372,6 +389,13 @@ void dwin_filament_was_removed() {
         curwin != window3 &&
         curwin != windowfil)
         ui_window_change_window("NoFilament");
+}
+
+void dwin_temperature_event(bool istoohot) {
+    if (istoohot)
+        ui_window_change_window("TooHot");
+    else
+        ui_window_change_window("TooCold");
 }
 
 /* Boot window */
@@ -395,6 +419,7 @@ bool _delay_until(int interval_ms) {
     {
         _next_update = ms + interval_ms;
         _interval_ms = interval_ms;
+        return true;
     }
 
     if(ms >= _next_update)
@@ -496,43 +521,33 @@ void _nofil_no(dwin_ui_element *element, void *context) {
     ui_window_change_window("Main");
 }
 
-extern void testss();
-
 /* Settings Window */
 void _settings_init(dwin_window *window, void *context) {
     uint8_t volume = dwin_get_volume();
     _settings_volume_set_pressed(NULL, (void *)&volume);
     // set the value of the incrementor
     dwin_send(&ui_elements_ender_6_settings[1], (short)volume << 8);
-
-    // hacky mc hack
-    testss();
 }
 
-void _settings_levelling_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_levelling_pressed(dwin_ui_element *element, void *context) {
     // auto nav to page
     ui_window_change_window("Level", true);
 }
 
-void _settings_refuel_ressed(dwin_ui_element *element, void *context)
-{
-    ui_window_change_window("Refuel");
+void _settings_refuel_ressed(dwin_ui_element *element, void *context) {
+    _nav_to_refuel();
 }
 
-void _settings_move_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_move_pressed(dwin_ui_element *element, void *context) {
     ui_window_change_window("Move");
 }
 
-void _settings_language_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_language_pressed(dwin_ui_element *element, void *context) {
     // auto switch
     ui_window_change_window("Lang", true);
 }
 
-void _settings_info_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_info_pressed(dwin_ui_element *element, void *context) {
     // actually we don't change window. The default dwin isn't set
     // to notify us of a back press (No data upload enabled)
     //ui_window_change_window("About");
@@ -543,28 +558,24 @@ void _settings_info_pressed(dwin_ui_element *element, void *context)
     dwin_send(&ui_elements_ender_6_about[3], WEBSITE_URL);
 }
 
-void _settings_disable_motor_pressed(dwin_ui_element *element, void *context)
-{
-    ui_window_change_window("Motor");
+void _settings_disable_motor_pressed(dwin_ui_element *element, void *context) {
+    queue.enqueue_one_P(PSTR("M84"));
+    dwin_send(&ui_elements_ender_6_settings[10], 11);
 }
 
-void _settings_back_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_back_pressed(dwin_ui_element *element, void *context) {
     ui_window_change_window("Main", true);
 }
 
-void _settings_volume_set_pressed(dwin_ui_element *element, void *context)
-{
+void _settings_volume_set_pressed(dwin_ui_element *element, void *context) {
     short volume = *(short *)context;
-    if(volume == 0)
-    {
+    if(volume == 0) {
         // mute icon
         dwin_send(&ui_elements_ender_6_settings[0], ui_elements_ender_6_settings[0].key_code + 1);
         // volume slider thing
         dwin_send(&ui_elements_ender_6_settings[1], ui_elements_ender_6_settings[1].key_code);
     }
-    else
-    {
+    else {
         // unmute icon
         dwin_send(&ui_elements_ender_6_settings[0], ui_elements_ender_6_settings[0].key_code);
         // volume slider icon
@@ -576,42 +587,34 @@ void _settings_volume_set_pressed(dwin_ui_element *element, void *context)
 }
 
 /* levelling menu */
-void _level_home_pressed(dwin_ui_element *element, void *context)
-{
+void _level_home_pressed(dwin_ui_element *element, void *context) {
     dwin_home("AutoHome", "Level", false);
 }
 
-void _level_z_minus_pressed(dwin_ui_element *element, void *context)
-{
-    dwin_set_probe_offset(-0.1);
-}
-
-void _level_z_plus_pressed(dwin_ui_element *element, void *context)
-{
+void _level_z_minus_pressed(dwin_ui_element *element, void *context) {
     dwin_set_probe_offset(0.1);
 }
 
-void _level_aux_pressed(dwin_ui_element *element, void *context)
-{
+void _level_z_plus_pressed(dwin_ui_element *element, void *context) {
+    dwin_set_probe_offset(-0.1);
+}
+
+void _level_aux_pressed(dwin_ui_element *element, void *context) {
     dwin_home("Processing", "AuxLevel", true);
 }
 
-void _level_measuring_pressed(dwin_ui_element *element, void *context)
-{
+void _level_measuring_pressed(dwin_ui_element *element, void *context) {
     ui_window_change_window("AutoLevel");
 }
 
-void _level_auto_switch_pressed(dwin_ui_element *element, void *context)
-{
+void _level_auto_switch_pressed(dwin_ui_element *element, void *context) {
     // Autolevel switch
-    if (dwin_get_auto_level_status())
-    {
+    if (dwin_get_auto_level_status()) {
         // turn on the Autolevel
         dwin_send(&ui_elements_ender_6_level[6], 0x3);
         dwin_set_auto_level_status(false);        
     }
-    else
-    {
+    else {
         // turn off the Autolevel
         dwin_send(&ui_elements_ender_6_level[6], 0x2);
         dwin_set_auto_level_status(true);
@@ -620,14 +623,12 @@ void _level_auto_switch_pressed(dwin_ui_element *element, void *context)
     //RTS_SndData(zprobe_zoffset*100, 0x1026); 
 }
 
-void _level_back(dwin_ui_element *element, void *context)
-{
+void _level_back(dwin_ui_element *element, void *context) {
     settings.save();
     ui_window_change_window("Settings");
 }
 
-void _level_init(dwin_window *window, void *context)
-{
+void _level_init(dwin_window *window, void *context) {
     // turn on the Autolevel icon    
     dwin_send(&ui_elements_ender_6_level[6], dwin_get_auto_level_status() ? 0x02 : 0x03);
 
@@ -637,58 +638,129 @@ void _level_init(dwin_window *window, void *context)
     showcount = 0;
     
     dwin_settings_load();
-    for(int y = 0;y < GRID_MAX_POINTS_Y;y++)
-    {
+    for(int y = 0;y < GRID_MAX_POINTS_Y;y++) {
       // away from origin
-      if (zig) 
-      {
+      if (zig) {
         inStart = 0;
-        inStop = GRID_MAX_POINTS_X;
+        inStop = GRID_MAX_POINTS_X - 1;
         inInc = 1;
       }
-      else
-      {
+      else {
         // towards origin
-        inStart = GRID_MAX_POINTS_X - 1;
+        inStart = GRID_MAX_POINTS_X - 2;
         inStop = -1;
         inInc = -1;
       }
       zig ^= true;
-      for(int x = inStart;x != inStop; x += inInc)
-      {
-        rtscheck.RTS_SndData(ubl.z_values[x][y] *10000, AutolevelVal + showcount*2);
+      for(int x = inStart;x != inStop; x += inInc) {
+        rtscheck.RTS_SndData(ubl.z_values[x][y] *1000, AutolevelVal + showcount*2);
         showcount++;
       }
     }
 }
 
 // auto level
-void _autolevel_init(dwin_window *window, void *context)
-{
+void _autolevel_init(dwin_window *window, void *context) {
     dwin_auto_level_start("Level");
 }
 
 // refuel
+static float _refuel_e_mm = 100;
+
+void _nav_to_refuel() {
+    // check temperature and whatnot
+    if (thermalManager.hotEnoughToExtrude(0) 
+            && thermalManager.temp_hotend[0].celsius >= thermalManager.degTargetHotend(0) 
+            && !thermalManager.isHeatingHotend(0)) {
+        ui_window_change_window("Refuel1");
+    }
+    else if (thermalManager.isHeatingHotend(0)) {
+        ui_window_change_window("Refuel3");
+    }
+    else {
+        ui_window_change_window("Refuel2");
+    }
+}
+
+void _refuel_init(dwin_window *window, void *context) {
+    material *mat = dwin_get_current_material();
+    dwin_send(&ui_elements_ender_6_refuel[6], _refuel_e_mm); // mm
+    dwin_send(&ui_elements_ender_6_refuel[7], dwin_get_material_hotend_temp(mat)); // target temp
+    _refuel_draw(window, context);
+}
+
+void _refuel_draw(dwin_window *window, void *context) {
+    if (!_delay_until(800)) // 800ms refresh interval 
+        return;
+    
+    dwin_send(&ui_elements_ender_6_main[0], thermalManager.temp_hotend[0].target);
+    dwin_send(&ui_elements_ender_6_main[1], thermalManager.temp_hotend[0].celsius);
+
+    // progress bar
+    dwin_window *w = ui_window_get_by_name("Refuel3");
+    
+    if (w == window) {
+        uint32_t icon;
+        if(thermalManager.degTargetHotend(0))
+            icon = thermalManager.temp_hotend[0].celsius * 100/thermalManager.temp_hotend[0].target;
+        else 
+            icon = 100;
+
+        if(icon >= 100)
+            icon = 100;
+        
+        dwin_send(&ui_elements_ender_6_refuel[8], icon);
+
+        // done
+        if (icon >= 99)
+            ui_window_change_window("Refuel1");
+    }
+}
+
 void _refuel_back(dwin_ui_element *element, void *context)
 {
+    // if we are heating, confirm? nah
+
+    ui_window_change_window("Settings");
+}
+
+void _refuel_ret(dwin_ui_element *element, void *context) {
+    current_position[E_AXIS] -= _refuel_e_mm;
+    dwin_plan_current_position(E_AXIS, 150);
+}
+
+void _refuel_feed(dwin_ui_element *element, void *context) {
+    current_position[E_AXIS] += _refuel_e_mm;
+    dwin_plan_current_position(E_AXIS, 150);
+}
+
+void _refuel_set_e_mm(dwin_ui_element *element, void *context) {
+    _refuel_e_mm = ((float)(*(uint16_t *)context)/10);
+}
+
+void _refuel_heatup(dwin_ui_element *element, void *context) {
+    material *mat = dwin_get_current_material();
+    thermalManager.setTargetHotend(dwin_get_material_hotend_temp(mat), 0);
+    _nav_to_refuel();
+}
+
+void _refuel_cancel(dwin_ui_element *element, void *context) {
+    thermalManager.setTargetHotend(0, 0);
     ui_window_change_window("Settings");
 }
 
 // move
-void _move_init(dwin_window *window, void *context)
-{
+void _move_init(dwin_window *window, void *context) {
     dwin_send(&ui_elements_ender_6_move[6], 10 * current_position[X_AXIS]);
     dwin_send(&ui_elements_ender_6_move[7], 10 * current_position[Y_AXIS]);
     dwin_send(&ui_elements_ender_6_move[8], 10 * current_position[Z_AXIS]);
 }
 
-void _move_back(dwin_ui_element *element, void *context)
-{
+void _move_back(dwin_ui_element *element, void *context) {
     ui_window_change_window("Settings");
 }
 
-static void _move_n(AxisEnum axis, uint16_t value, float min, float max)
-{
+static void _move_n(AxisEnum axis, uint16_t value, float min, float max) {
     current_position[axis] = ((float)value)/10;
     if (current_position[axis] < min)
         current_position[axis] = min;
@@ -697,35 +769,32 @@ static void _move_n(AxisEnum axis, uint16_t value, float min, float max)
 
     dwin_plan_current_position(axis);
 }
-void _move_x(dwin_ui_element *element, void *context)
-{
+
+void _move_x(dwin_ui_element *element, void *context) {
     uint16_t val = *(uint16_t *)context;
     _move_n(X_AXIS, val, X_MIN_POS, X_MAX_POS);
 }
-void _move_y(dwin_ui_element *element, void *context)
-{
+
+void _move_y(dwin_ui_element *element, void *context) {
     uint16_t val = *(uint16_t *)context;
     _move_n(Y_AXIS, val, Y_MIN_POS, Y_MAX_POS);
 }
-void _move_z(dwin_ui_element *element, void *context)
-{
+
+void _move_z(dwin_ui_element *element, void *context) {
     uint16_t val = *(uint16_t *)context;
     _move_n(Z_AXIS, val, Z_MIN_POS, Z_MAX_POS);
 }
 
-void _move_home(dwin_ui_element *element, void *context)
-{
+void _move_home(dwin_ui_element *element, void *context) {
     dwin_home("AutoHome", "Move", false);
 }
 
 // aux level
-void _aux_move_back(dwin_ui_element *element, void *context)
-{
+void _aux_move_back(dwin_ui_element *element, void *context) {
     ui_window_change_window("Level");
 }
 
-void _aux_move(dwin_ui_element *element, int x, int y, int z)
-{
+void _aux_move(dwin_ui_element *element, int x, int y, int z) {
     ui_input_lock();
     char buf[50];
     snprintf(buf, 50, "G1 X%d Y%d F%d", x, y, z);
@@ -743,8 +812,7 @@ void _aux_move_5(dwin_ui_element *element, void *context) { _aux_move(element, 5
 
 // auto home
 static uint8_t _homing_icon;
-void _homing_draw(dwin_window *window, void *context)
-{
+void _homing_draw(dwin_window *window, void *context) {
     if (!_delay_until(500)) // 500ms refresh interval 
         return;
 
@@ -765,25 +833,26 @@ void _lang_back(dwin_ui_element *element, void *context)
 }
 
 // pla abs
-void _plaabs_pla(dwin_ui_element *element, void *context)
-{
-    thermalManager.setTargetHotend(PREHEAT_1_TEMP_HOTEND, 0);
-    thermalManager.setTargetBed(PREHEAT_1_TEMP_BED);
+void _plaabs_pla(dwin_ui_element *element, void *context) {    
+    material *mat = dwin_get_material(Pla);
+    thermalManager.setTargetHotend(dwin_get_material_hotend_temp(mat), 0);
+    thermalManager.setTargetBed(dwin_get_material_bed_temp(mat));
+    dwin_set_current_material(mat);
 
     _nav_to_temp_menu(true);
 }
 
-void _plaabs_abs(dwin_ui_element *element, void *context)
-{
-    thermalManager.setTargetHotend(PREHEAT_2_TEMP_HOTEND, 0);
-    thermalManager.setTargetBed(PREHEAT_2_TEMP_BED);
-        //RTS_SndData(PREHEAT_2_TEMP_HOTEND,NozzlePreheat);
-        //RTS_SndData(PREHEAT_2_TEMP_BED,BedPreheat);
+void _plaabs_abs(dwin_ui_element *element, void *context) {
+    material *mat = dwin_get_material(Abs);
+    thermalManager.setTargetHotend(dwin_get_material_hotend_temp(mat), 0);
+    thermalManager.setTargetBed(dwin_get_material_bed_temp(mat));    
+    
+    dwin_set_current_material(mat);
+
     _nav_to_temp_menu(true);
 }
 
-void _plaabs_cancel(dwin_ui_element *element, void *context)
-{
+void _plaabs_cancel(dwin_ui_element *element, void *context) {
     _nav_to_temp_menu(true);
 }
 
@@ -819,7 +888,7 @@ void _menu_temp_auto(dwin_ui_element *element, void *context) {
 }
 
 void _menu_temp_manual(dwin_ui_element *element, void *context) {
-    ui_window_change_window("Main", true);
+    ui_window_change_window("NozTemp", true);
 }
 
 void _menu_temp_cool(dwin_ui_element *element, void *context) {
@@ -925,7 +994,7 @@ void _print_stop_no(dwin_ui_element *element, void *context) {
 
 void _print_stop_yes(dwin_ui_element *element, void *context) {
     dwin_stop_print();
-    _nav_to_print_menu();
+    ui_window_change_window("Main");
 }
 
 void _print_pause_yes(dwin_ui_element *element, void *context) {
@@ -956,6 +1025,7 @@ void _adjust_init(dwin_window *window, void *context) {
     dwin_send(&ui_elements_ender_6_adjust[0], thermalManager.temp_hotend[0].target);
     dwin_send(&ui_elements_ender_6_adjust[2], thermalManager.temp_bed.target);
     dwin_send(&ui_elements_ender_6_adjust[4], feedrate_percentage);
+    dwin_send(&ui_elements_ender_6_adjust[8], probe.offset.z * 100);
 }
 
 void _adjust_noz_temp(dwin_ui_element *element, void *context) {
@@ -976,6 +1046,7 @@ void _adjust_speed(dwin_ui_element *element, void *context) {
 }
 
 void _adjust_back(dwin_ui_element *element, void *context) {
+    settings.save();
     _nav_to_print_menu();
 }
 
@@ -989,93 +1060,15 @@ void _adjust_fan(dwin_ui_element *element, void *context) {
 }
 
 void _adjust_z(dwin_ui_element *element, void *context) {
+    uint16_t off = *(uint16_t *)context;
+    float zoff = 0;
 
-}
-
-#if 0
-
-
-  PrintMode = eeprom_read_byte((unsigned char*)FONT_EEPROM+6);
-  if(PrintMode)
-  {
-    // saving mode
-    RTS_SndData(3, FanKeyIcon + 1);
-  }
-  else
-  {
-    // normal
-    RTS_SndData(2, FanKeyIcon + 1);
-  }
-
-  last_target_temperature_bed = thermalManager.target_temperature_bed;
-  last_target_temperature[0] =  thermalManager.target_temperature[0];
-  feedrate_percentage = 100;
-  RTS_SndData(feedrate_percentage,FeedrateDisplay);
-
-  /***************turn off motor*****************/
-  RTS_SndData(11, FilenameIcon); 
-
-  /***************transmit temperature to screen*****************/
-  RTS_SndData(0, NozzlePreheat);
-  RTS_SndData(0, BedPreheat);
-  RTS_SndData(thermalManager.current_temperature[0], NozzleTemp);
-  RTS_SndData(thermalManager.current_temperature_bed, Bedtemp);
-  /***************transmit Fan speed to screen*****************/
-  #if FAN_COUNT > 0
-    // turn off fans
-    for (uint8_t i = 0; i < FAN_COUNT; i++) fanSpeeds[i] = FanOff;
-  #endif
-  // turn off fans
-  RTS_SndData(2, FanKeyIcon);
-  FanStatus = true;	
-	
-  /*********transmit SD card filename to screen***************/
-  RTS_SDCardInit();
-  /***************transmit Printer information to screen*****************/
-  // clean filename
-  for(int j = 0;j < 20;j++)
-  {
-    RTS_SndData(0,MacVersion+j);
-  }
-  char sizebuf[20]={0};
-  sprintf(sizebuf,"%d X %d X %d",MAC_LENGTH, MAC_WIDTH, MAC_HEIGHT);
-  RTS_SndData(MACVERSION, MacVersion);
-  RTS_SndData(SOFTVERSION, SoftVersion);
-  RTS_SndData(sizebuf, PrinterSize);
-  if(LanguageRecbuf != 0)
-    RTS_SndData(CORP_WEBSITE_C, CorpWebsite);
-  else
-    RTS_SndData(CORP_WEBSITE_E, CorpWebsite);
-
-  /**************************some info init*******************************/
-  RTS_SndData(0,PrintscheduleIcon);
-  RTS_SndData(0,PrintscheduleIcon+1);
-
-  /************************clean screen*******************************/
-  for(int i = 0;i < MaxFileNumber;i++)
-  {
-    for(int j = 0;j < 10;j++)
-    {
-      RTS_SndData(0,SDFILE_ADDR +i*10+j);
+    if(off >= 32768) {
+        zoff = ((float)off - 65536) / 100;
     }
-  }
-
-  for(int j = 0;j < 10;j++)	
-  {
-    // clean screen.
-    RTS_SndData(0,Printfilename+j);
-    // clean filename
-    RTS_SndData(0,Choosefilename+j);
-  }
-  for(int j = 0;j < 8;j++)
-  {
-    RTS_SndData(0,FilenameCount+j);
-  }
-  for(int j = 1;j <= MaxFileNumber;j++)
-  {
-    RTS_SndData(10,FilenameIcon+j);
-    RTS_SndData(10,FilenameIcon1+j);
-  }
-  SERIAL_ECHOLN("===Initing RTS has finished===");
+    else {
+        zoff = ((float)off) / 100;
+    }
+    
+    dwin_set_probe_offset(zoff - probe.offset.z);
 }
-#endif

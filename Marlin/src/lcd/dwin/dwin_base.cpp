@@ -55,7 +55,7 @@ void DWIN_UpdateLCD() {;}
 void HMI_StartFrame(bool) {;}
 void DWIN_CompletedHoming() { dwin_homing_complete(); }
 void DWIN_Frame_SetDir(uint8_t dir) {;}
-void Popup_Window_Temperature(bool) {} // TODO
+void Popup_Window_Temperature(bool istoohot) { dwin_temperature_event(istoohot); }
 void DWIN_CompletedLeveling() { dwin_auto_level_complete(); };
 void DWIN_SetHomeFlag(bool flag) { /*dwin_set_homing(flag);*/ }
 void DWIN_SetHeatFlag(bool flag, millis_t heat_time) { ; } // TODO
@@ -81,7 +81,7 @@ const float manual_feedrate_mm_m[] = DEFAULT_MANUAL_FEEDRATE;
 #define DWIN_VOLUME_EEPROM_ADDRESS    0x04
 static uint8_t _lang_id = 0;
 static uint8_t _auto_bed_level = 0;
-float _z_probe_offset;
+
 #define DEFAULT_VOLUME 0x80
 static uint8_t _dwin_volume = DEFAULT_VOLUME;
 
@@ -97,13 +97,21 @@ void dwin_send(const dwin_ui_element *element, int value) {
     rtscheck.RTS_SndData(value, element->element_id);
 }
 
+void dwin_send(const dwin_ui_element *element, float value) {
+    rtscheck.RTS_SndData(value, element->element_id);
+}
+
 void dwin_send(const dwin_ui_element *element, const char *value) {
     rtscheck.RTS_SndData(value, element->element_id);
 }
 
-void dwin_plan_current_position(AxisEnum axis) {
+void dwin_plan_current_position(AxisEnum axis, float e_feedrate /*= 0*/) {
   if (!planner.is_full()) {
-    planner.buffer_line(current_position, MMM_TO_MMS(manual_feedrate_mm_m[(int8_t)axis]), active_extruder);
+    int f = e_feedrate;
+    if (e_feedrate == 0)
+      f = MMM_TO_MMS(manual_feedrate_mm_m[(int8_t)axis]);
+
+    planner.buffer_line(current_position, f, active_extruder);
   }
 }
 
@@ -193,34 +201,40 @@ void dwin_auto_level_start(const char *page_name_to_return_to) {
   queue.inject_P(PSTR("G29 P1"));
 }
 
-
 void dwin_auto_level_complete() {
-  if (_page_name_to_return_to)
-  {
+  static uint8_t step = 0;
+
+  if (step == 0) {
     queue.enqueue_now_P(PSTR("G29 P3")); // fill the rest of the coordinates with extrapo
     queue.enqueue_now_P(PSTR("G29 S1")); // save
+  }
+  else if (step == 2) {
+    // saved
     settings.save();
     ui_window_change_window(_page_name_to_return_to);
     _page_name_to_return_to = NULL;
+    step = 0;
+    return;
   }
+  step++;
 }
 
 void dwin_set_probe_offset(float z) {
     #if HAS_BED_PROBE
-      if (WITHIN(_z_probe_offset + z, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
-        probe.offset.z = _z_probe_offset + z;
+      if (WITHIN(probe.offset.z + z, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        probe.offset.z += z;
         #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
           babystep.add_mm(Z_AXIS, (z));
         #endif
       }
     #elif ENABLED(BABYSTEPPING)
-      babystep.add_mm(Z_AXIS, (zprobe_zoffset - _prev_z_probe_offset));
+      babystep.add_mm(Z_AXIS, (zprobe_zoffset - probe.offset.z));
     #else
-      UNUSED(zprobe_zoffset - _prev_z_probe_offset);
+      UNUSED(zprobe_zoffset - probe.offset.z);
     #endif
 
-    NOLESS(_z_probe_offset, (Z_PROBE_OFFSET_RANGE_MIN));
-    NOMORE(_z_probe_offset, (Z_PROBE_OFFSET_RANGE_MAX));
+    NOLESS(probe.offset.z, (Z_PROBE_OFFSET_RANGE_MIN));
+    NOMORE(probe.offset.z, (Z_PROBE_OFFSET_RANGE_MAX));
 }
 
 void dwin_init_volume() {
@@ -312,7 +326,7 @@ void dwin_print_file_selected(int index) {
   if(!card.isMounted())
     return;
 
-  CardRecbuf.recordcount = index;
+  CardRecbuf.recordcount = index - 1;
   
   int filelen = strlen(CardRecbuf.Cardshowfilename[CardRecbuf.recordcount]);
   filelen = (TEXTBYTELEN - filelen)/2;
@@ -461,6 +475,64 @@ void dwin_stop_print() {
 uint8_t dwin_percent_done() {
   return card.percentDone();
 }
+
+// material selection
+typedef struct material {
+  float hotend_temp;
+  float bed_temp;
+  material_type type;
+} material;
+
+
+const material _materials[] ={
+  { PREHEAT_1_TEMP_HOTEND, PREHEAT_1_TEMP_BED, Pla },
+  { PREHEAT_2_TEMP_HOTEND, PREHEAT_2_TEMP_BED, Abs },
+  { 220, 60, Petg }
+};
+
+static material *_current_material = (material *)&_materials[0];
+
+material_type dwin_get_material_type(material *mat) {
+  return mat->type;
+}
+
+float dwin_get_material_current_hotend_temp() {
+  return _current_material->hotend_temp;
+}
+
+float dwin_get_material_hotend_temp(material *mat) {
+  return mat->hotend_temp;
+}
+
+void  dwin_set_material_hotend_temp(material *mat, float temp) {
+  mat->hotend_temp = temp;
+}
+
+float dwin_get_material_bed_temp(material *mat) {
+  return mat->bed_temp;
+}
+
+void  dwin_set_material_bed_temp(material *mat, float temp) {
+  mat->bed_temp = temp;
+}
+
+material *dwin_get_current_material() {
+  return _current_material;
+}
+
+void dwin_set_current_material(material *mat) {
+  _current_material = mat;
+}
+
+material *dwin_get_material(material_type mat_type) {
+  for (unsigned int i = 0; i < (sizeof(_materials) / sizeof(material)); i++) {
+    material *m = (material *)&_materials[i];
+    if (m->type == mat_type)
+      return m;
+  }
+  return NULL;
+}
+
 
 /** UI **/
 
@@ -616,7 +688,7 @@ void RTSSHOW::RTS_SDCardInit(void)
 
 void RTSSHOW::RTS_SDCardUpate(void)
 {	
-  /*
+  
   const bool sd_status = card.isMounted();
   if (sd_status != lcd_sd_status)
   {
@@ -628,77 +700,49 @@ void RTSSHOW::RTS_SDCardUpate(void)
     else
     {
       card.release();
-	  // heating or printing
-      if( CardCheckStatus[0] == 1)
-      {
+	    // heating or printing
+      if(thermalManager.isHeatingHotend(0) || thermalManager.isHeatingBed()) {
         RTS_SDcard_Stop();
-		// cancel to check card during printing the gcode file 
-        CardCheckStatus[0] = 0;
       }
 
-      if(LanguageRecbuf != 0)
-      {
+      if(dwin_get_language() != 0) {
         // 6 for Card Removed
         RTS_SndData(6,IconPrintstatus);
       }
-      else
-      {
+      else {
         RTS_SndData(6+CEIconGrap,IconPrintstatus);
       }
-      for(int i = 0;i < CardRecbuf.Filesum;i++)
-      {
+
+      for(int i = 0; i < CardRecbuf.Filesum; i++) {
         for(int j = 0;j < 10;j++)
         RTS_SndData(0,CardRecbuf.addr[i]+j);
-        // RTS_SndData(4,FilenameIcon+1+i);
+        
         // white
-        RTS_SndData((unsigned long)0xFFFF,FilenameNature + (i+1)*16);
+        RTS_SndData((unsigned long)0xFFFF, FilenameNature + (i+1)*16);
       }
 
-      for(int j = 0;j < 10;j++)	
-      {
+      for(int j = 0;j < 10;j++)	{
         // clean screen.
         //RTS_SndData(0,Printfilename+j);
         // clean filename
         RTS_SndData(0,Choosefilename+j);
       }
-      for(int j = 0;j < 8;j++)
-      {
+
+      for(int j = 0;j < 8;j++) {
         RTS_SndData(0,FilenameCount+j);
       }
+
       // clean filename Icon
-      for(int j = 1;j <= 20;j++)
-      {
+      for(int j = 1;j <= 20;j++) {
         RTS_SndData(10,FilenameIcon+j);
         RTS_SndData(10,FilenameIcon1+j);
       }
       memset(&CardRecbuf,0,sizeof(CardRecbuf));
     }
     lcd_sd_status = sd_status;
-  }*/
-/*
-  // represents to update file list
-  if (CardUpdate && lcd_sd_status &&  card.isMounted())
-  {
-    // clean filename
-    for(int j = 0;j < 10;j++)
-    {
-      RTS_SndData(0,Choosefilename+j);
-    }
-    for(int j = 0;j < 8;j++)
-    {
-      RTS_SndData(0,FilenameCount+j);
-    }
-    for (uint16_t i = 0; i < CardRecbuf.Filesum ; i++) 
-    {
-      delay(3);
-      RTS_SndData(CardRecbuf.Cardshowfilename[i],CardRecbuf.addr[i]);
-      RTS_SndData(1,FilenameIcon+1+i);
-      RTS_SndData((unsigned long)0xFFFF,FilenameNature + (i+1)*16);		// white
-      RTS_SndData(10,FilenameIcon1+1+i);
-    }
-    CardUpdate = false;
+
+    RTS_SDCardInit();
   }
-  */
 }
 
 int RTSSHOW::_handle_packet() {
@@ -798,45 +842,6 @@ int RTSSHOW::RTS_RecData() {
   }
 
   return 0;
-}
-
-typedef struct __attribute__((packed)) dwin_return_key_code {
-  uint16_t page_id;
-  uint16_t x0;
-  uint16_t y0;
-  uint16_t x1;
-  uint16_t y1;
-  uint16_t pic_next;
-  uint16_t pic_on;
-  uint16_t tp_code;
-  uint8_t fe;
-  uint16_t vp;
-  uint8_t vp_mode;
-  uint16_t key_code;
-  uint8_t data[10];
-} dwin_return_key_code;
-
-#define DWIN_NO_PIC 0xFFFF
-
-void testss() {
-  #define U16(X, Y) *X = Y >> 8; *(X + 1) = Y & 0xFF; X += 2;
-
-  dwin_return_key_code d;
-  memset(&d, 0, sizeof(d));
-  d.page_id = 45;
-  d.x0 = 0;
-  d.y0 = 0;
-  d.x1 = 100;
-  d.y1 = 80;
-  d.pic_next = DWIN_NO_PIC;
-  d.pic_on = DWIN_NO_PIC;
-  d.tp_code = 0xFE05;
-  d.fe = 0xFE;
-  d.vp = 0x105A;
-  d.vp_mode = 0;
-  d.key_code = 1;
-  memcpy(rtscheck.databuf, &d, sizeof(d));
-  rtscheck.RTS_SndData();
 }
 
 void RTSSHOW::RTS_SndData(void)

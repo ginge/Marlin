@@ -52,6 +52,13 @@ typedef struct dwin_window {
     ui_window_cb draw;
 } dwin_window;
 
+typedef struct material material;
+
+enum material_type{
+  Pla,
+  Abs,
+  Petg
+};
 
 
 void dwin_loop();
@@ -80,7 +87,7 @@ void dwin_settings_load();
 bool dwin_get_fan();
 void dwin_set_fan(bool enabled);
 
-void dwin_plan_current_position(AxisEnum axis);
+void dwin_plan_current_position(AxisEnum axis, float e_feedrate = 0);
 
 void dwin_homing_complete();
 void dwin_set_homing(bool is_homing);
@@ -100,6 +107,7 @@ void ui_window_change_window(const char *name);
 void ui_window_change_window(const char *name, bool dont_navigate);
 
 void dwin_filament_was_removed();
+void dwin_temperature_event(bool istoohot);
 void dwin_start_print(const char *window_to_nav_to);
 void dwin_print_file_selected(int index);
 bool dwin_is_paused();
@@ -108,6 +116,16 @@ void dwin_stop_print();
 void dwin_resume_print();
 uint8_t dwin_percent_done();
 void dwin_send_filename();
+
+material_type dwin_get_material_type(material *mat);
+float dwin_get_material_current_hotend_temp();
+float dwin_get_material_hotend_temp(material *mat);
+void  dwin_set_material_hotend_temp(material *mat, float temp);
+float dwin_get_material_bed_temp(material *mat);
+void  dwin_set_material_bed_temp(material *mat, float temp);
+material *dwin_get_current_material();
+void dwin_set_current_material(material *mat);
+material *dwin_get_material(material_type mat_type);
 
 // wrapper
 void DWIN_Update(void);
