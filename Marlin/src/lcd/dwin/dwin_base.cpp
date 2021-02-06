@@ -160,9 +160,9 @@ void dwin_set_language(uint8_t lang_id) {
 }
 
 uint8_t dwin_init_auto_level_status() {
-    uint8_t bedlev;
-    BL24CXX::read(DWIN_BED_LEVEL_EEPROM_ADDRESS, (uint8_t*)&bedlev, sizeof(bedlev));
+    _auto_bed_level = BL24CXX::readOneByte(DWIN_BED_LEVEL_EEPROM_ADDRESS);
     
+    dwin_set_auto_level_status(_auto_bed_level == 1);
     /* dump eeprom
     SERIAL_ECHOPAIR("\n *** Bed1 =", bedlev);
 
@@ -174,8 +174,7 @@ uint8_t dwin_init_auto_level_status() {
       snprintf(b, 20, "0x%2x", eeprom[i]);
       SERIAL_ECHOPAIR(" ", b);
     }*/
-    _auto_bed_level = bedlev - 0x30;
-    return bedlev;
+    return _auto_bed_level;
 }
 
 uint8_t dwin_get_auto_level_status() {
@@ -183,11 +182,8 @@ uint8_t dwin_get_auto_level_status() {
 }
 
 void dwin_set_auto_level_status(bool is_enabled) {
-  uint8_t buf[2];
-  
-  buf[0] = (is_enabled ? 1 : 0);
-  BL24CXX::write(DWIN_BED_LEVEL_EEPROM_ADDRESS, buf, 1);
-  _auto_bed_level = is_enabled;
+  BL24CXX::writeOneByte(DWIN_BED_LEVEL_EEPROM_ADDRESS, is_enabled ? 1 : 0);
+  _auto_bed_level = is_enabled ? 1 : 0;
 
   if (is_enabled)
     queue.inject_P(PSTR("M420 S1"));

@@ -436,7 +436,7 @@ void _boot_window_draw(dwin_window *window, void *context) {
     uint8_t progress = _progress;
     // there is only a splash boot screen on here. 
     // It has two progress bars on it
-    if (!_delay_until(10)) // 10ms = 2s
+    if (!_delay_until(1))
         return;
 
     if (progress > 200)
@@ -612,17 +612,15 @@ void _level_measuring_pressed(dwin_ui_element *element, void *context) {
 void _level_auto_switch_pressed(dwin_ui_element *element, void *context) {
     // Autolevel switch
     if (dwin_get_auto_level_status()) {
-        // turn on the Autolevel
-        dwin_send(&ui_elements_ender_6_level[6], 0x3);
+        // turn off the Autolevel
+        dwin_send(&ui_elements_ender_6_level[6], 0x2);
         dwin_set_auto_level_status(false);        
     }
     else {
-        // turn off the Autolevel
-        dwin_send(&ui_elements_ender_6_level[6], 0x2);
+        // turn on the Autolevel
+        dwin_send(&ui_elements_ender_6_level[6], 0x3);
         dwin_set_auto_level_status(true);
     }
-
-    //RTS_SndData(zprobe_zoffset*100, 0x1026); 
 }
 
 void _level_back(dwin_ui_element *element, void *context) {
@@ -632,7 +630,7 @@ void _level_back(dwin_ui_element *element, void *context) {
 
 void _level_init(dwin_window *window, void *context) {
     // turn on the Autolevel icon    
-    dwin_send(&ui_elements_ender_6_level[6], dwin_get_auto_level_status() ? 0x02 : 0x03);
+    dwin_send(&ui_elements_ender_6_level[6], dwin_get_auto_level_status() ? 0x03 : 0x02);
 
     // send the levels
     bool zig = true;
@@ -728,12 +726,12 @@ void _refuel_back(dwin_ui_element *element, void *context)
 
 void _refuel_ret(dwin_ui_element *element, void *context) {
     current_position[E_AXIS] -= _refuel_e_mm;
-    dwin_plan_current_position(E_AXIS, 150);
+    dwin_plan_current_position(E_AXIS, 100);
 }
 
 void _refuel_feed(dwin_ui_element *element, void *context) {
     current_position[E_AXIS] += _refuel_e_mm;
-    dwin_plan_current_position(E_AXIS, 150);
+    dwin_plan_current_position(E_AXIS, 100);
 }
 
 void _refuel_set_e_mm(dwin_ui_element *element, void *context) {
@@ -943,7 +941,7 @@ void _ntemp_set_end(dwin_ui_element *element, void *context) {
     thermalManager.setTargetHotend(*(int16_t *)context, 0);
 }
 
-// print
+/* Print Winow */
 void _print_init(dwin_window *window, void *context) {
     dwin_send_filename();
 
@@ -1017,7 +1015,7 @@ void _print_adjust(dwin_ui_element *element, void *context) {
     ui_window_change_window("Adjust", true);
 }
 
-// adjust window
+/* adjust window */
 void _adjust_init(dwin_window *window, void *context) {
     if (dwin_get_fan())
         dwin_send(&ui_elements_ender_6_adjust[10], ui_elements_ender_6_adjust[10].key_code);
