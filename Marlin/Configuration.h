@@ -1435,8 +1435,8 @@
   #define EStepsmm 140
 #elif ENABLED(MachineCR2020)
   #define EStepsmm 113
-#else ENABLED(MachineEnder6)
-  #define EStepsmm 130
+#elif ENABLED(MachineEnder6)
+  #define EStepsmm 140
 #else
   #define EStepsmm 95
 #endif
